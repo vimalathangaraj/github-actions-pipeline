@@ -1,0 +1,44 @@
+name: Destroy ECS Service (OIDC)
+
+on:
+  workflow_dispatch:   # manual trigger only (safe)
+
+permissions:
+  contents: read
+  id-token: write
+
+env:
+  AWS_REGION: eu-north-1
+  ECS_CLUSTER: my-ecs-cluster
+  ECS_SERVICE: my-task-service-uvfeo8h5
+
+jobs:
+  destroy:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Configure AWS credentials (OIDC)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Debug AWS identity
+        run: aws sts get-caller-identity
+
+      - name: Scale ECS service to zero
+        run: |
+          aws ecs update-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --desired-count 0
+
+      - name: Delete ECS service
+        run: |
+          aws ecs delete-service \
+            --cluster $ECS_CLUSTER \
+            --service $ECS_SERVICE \
+            --force
